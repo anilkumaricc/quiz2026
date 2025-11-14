@@ -4,7 +4,7 @@
 
 window.ADCA = {
   // Apps Script Web App endpoint (final value specified in Master Prompt)
-  ENDPOINT: "https://script.google.com/macros/s/AKfycbyC_kGdWjTuMOm0-blHhqjyn4mq_iJKkhTYr6zMj_NMVQd0EZgcgfM2ztjNWCoRW3q2/exec",
+  ENDPOINT: "ENDPOINT: "https://script.google.com/macros/s/AKfycbxiQK2dwe-sAQLQZfyz8skiTmzaA6s_S9pDLJZPh75NhRg8zYnmCN9I1YkB5xejptjC/exec",
 
   // Must match backend SCRIPT_PROPS.PRIMARY_KEY & ADMIN_KEY
   PRIMARY_KEY: "primary_Ea7f4c2b",
