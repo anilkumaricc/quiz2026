@@ -1,0 +1,263 @@
+<!-- FILE: index.html
+     Registration page (this is the Index UI expected by Apps Script).
+     Must be uploaded to Apps Script project as an HTML file named EXACTLY "Index".
+     UI/UX preserved from user spec. No design changes.
+-->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ADCA Quiz — Registration</title>
+<link rel="icon" href="data:," />
+<style>
+  :root{
+    --bg:#07090d; --panel:#0f1724; --primary:#2563eb; --primary-2:#1e40af; --muted:#93a4b8;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  html,body{height:100%;margin:0;background:
+    radial-gradient(900px 400px at 70% -10%, rgba(37,99,235,0.08), transparent),
+    linear-gradient(180deg,#02040a,#07090d); color:#e6eef8;}
+  .wrap{max-width:980px; margin:28px auto; padding:18px; display:grid; grid-template-columns:1fr 320px; gap:18px;}
+  header{grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-2));box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+  h1{margin:0;font-size:18px}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); padding:18px; border-radius:12px; box-shadow: 0 8px 30px rgba(2,6,23,0.6)}
+  form .row{display:flex; gap:10px; margin-bottom:12px}
+  label{font-size:13px;color:var(--muted); display:block;margin-bottom:6px}
+  input, select{width:100%; padding:10px 12px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); color:inherit; box-sizing:border-box}
+  .small{font-size:13px;color:var(--muted)}
+  .right-col{display:flex; flex-direction:column; gap:12px}
+  .series-card{padding:12px; border-radius:10px;}
+  .btn{display:inline-flex;gap:8px; align-items:center; padding:10px 14px; border-radius:10px; background:linear-gradient(90deg,var(--primary),var(--primary-2)); color:white; border:none; cursor:pointer; font-weight:600}
+  .btn-ghost{background:#0b1220; color:#8abbd5; border:1.6px solid #233047; padding:8px 10px; border-radius:8px}
+  .pi{font-family:monospace; background:rgba(255,255,255,0.02); padding:8px 10px; border-radius:8px; display:inline-block}
+  .overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(2,6,23,0.6); z-index:60}
+  .pwdbox{width:420px; max-width:92%; padding:18px; border-radius:12px; background:linear-gradient(180deg,#061029,#081428); border:1px solid rgba(255,255,255,0.04)}
+  footer{grid-column:1/-1; text-align:center; color:var(--muted); font-size:13px; margin-top:6px}
+  @media(max-width:880px){ .wrap{grid-template-columns:1fr} .right-col{order:-1} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>ADCA Quiz — Registration</h1>
+        <div class="small">Tokenized • Google Sheets Backend</div>
+      </div>
+    </div>
+    <div class="small muted">Ideal Computer Centre — Hatta</div>
+  </header>
+
+  <main class="panel">
+    <form id="regForm" autocomplete="off" novalidate>
+      <div class="row">
+        <div style="flex:1">
+          <label for="studentName">Student Full Name</label>
+          <input id="studentName" name="studentName" minlength="5" placeholder="e.g. Ravi Kumar" required />
+        </div>
+        <div style="flex:1">
+          <label for="fatherName">Father Name</label>
+          <input id="fatherName" name="fatherName" minlength="5" placeholder="e.g. Ram Lal" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="roll">Roll (3 digits)</label>
+          <input id="roll" name="roll" maxlength="3" placeholder="001" required />
+        </div>
+        <div style="flex:1">
+          <label for="mobile">Mobile (10 digits)</label>
+          <input id="mobile" name="mobile" maxlength="10" placeholder="98XXXXXXXX" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="series">Series</label>
+          <select id="series"></select>
+        </div>
+        <div style="flex:1">
+          <label for="setNo">Set</label>
+          <select id="setNo"></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>PI</label>
+          <div class="pi" id="piPreview">—</div>
+        </div>
+        <div style="flex:1">
+          <label>&nbsp;</label>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="btn" id="startBtn">Start Quiz</button>
+            <button type="button" id="clearBtn" class="btn-ghost">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="small">Data saved locally. On unlock, you will be redirected to the quiz.</p>
+    </form>
+  </main>
+
+  <aside class="right-col">
+    <div class="series-card panel">
+      <h3 style="margin:0 0 8px 0">Series</h3>
+      <div id="seriesList" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <h4 style="margin:0 0 8px 0">How to proceed</h4>
+      <p class="small">Enter details → Click Start → Enter password overlay → You will be redirected to quiz page.</p>
+    </div>
+  </aside>
+
+  <footer>ADCA Quiz System — Mobile friendly • Tokens • Google Sheets</footer>
+</div>
+
+<!-- Password overlay -->
+<div id="pwdOverlay" class="overlay" style="display:none">
+  <div class="pwdbox" role="dialog" aria-modal="true" aria-labelledby="pwdTitle">
+    <h3 id="pwdTitle" style="margin:0 0 10px 0">Enter Access Password</h3>
+    <input id="pwdInput" placeholder="Password" autocomplete="new-password" />
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button id="pwdCancel" class="btn-ghost">Cancel</button>
+      <button id="pwdOk" class="btn">Unlock</button>
+    </div>
+    <div class="small" style="margin-top:10px">Valid passwords: <strong>hatta2025</strong>, <strong>quizideal</strong>, <strong>adca2025</strong></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+/* index.html client logic — keeps UI exactly as requested, fixed bugs and consistent config usage */
+const VALID_PASSWORDS = ['hatta2025','quizideal','adca2025'];
+const ENDPOINT = window.ADCA && window.ADCA.ENDPOINT ? window.ADCA.ENDPOINT : '';
+const seriesOptions = [
+  {id:'A', label:'A - ADCA Basic'},
+  {id:'B', label:'B - ADCA Advanced'},
+  {id:'C', label:'C - ADCA Pro'},
+  {id:'D', label:'D - ADCA Master'}
+];
+const setsPerSeries = { A:[1,2,3], B:[1,2,3], C:[1,2], D:[1,2,3,4] };
+
+function el(id){return document.getElementById(id);}
+function pad(n, len=3){ return String(n).padStart(len,'0'); }
+
+function init(){
+  const s = el('series');
+  seriesOptions.forEach(opt=> {
+    const o = document.createElement('option'); o.value = opt.id; o.textContent = opt.label; s.appendChild(o);
+  });
+
+  const sl = el('seriesList');
+  seriesOptions.forEach(opt=>{ const d=document.createElement('div'); d.className='small'; d.textContent=opt.label; sl.appendChild(d); });
+
+  el('series').addEventListener('change', onSeriesChange);
+  el('setNo').addEventListener('change', updatePI);
+  ['studentName','fatherName','roll','mobile'].forEach(id=> el(id).addEventListener('input', updatePI));
+  el('startBtn').addEventListener('click', onStart);
+  el('clearBtn').addEventListener('click', onClear);
+
+  loadSaved();
+  onSeriesChange();
+  updatePI();
+  setupPwdOverlay();
+}
+
+function onSeriesChange(){
+  const s = el('series').value || seriesOptions[0].id;
+  const arr = setsPerSeries[s] || [];
+  const setEl = el('setNo'); setEl.innerHTML='';
+  arr.forEach(n=>{ const o=document.createElement('option'); o.value=String(n); o.textContent='Set '+pad(n,3); setEl.appendChild(o); });
+  updatePI();
+}
+
+function updatePI(){
+  const series = el('series').value || seriesOptions[0].id;
+  const setNo = el('setNo').value || (setsPerSeries[series] ? String(setsPerSeries[series][0]) : '1');
+  const roll = (el('roll').value || '').padStart(3,'0').slice(-3);
+  const pi = `${series}${pad(setNo,3)}${roll}`;
+  el('piPreview').textContent = pi;
+}
+
+function validateForm(){
+  const name = el('studentName').value.trim();
+  const father = el('fatherName').value.trim();
+  const roll = el('roll').value.trim();
+  const mobile = el('mobile').value.trim();
+  if(name.length < 5 || !name.includes(' ')) { alert('Student name must be min 5 characters and include a space'); return false; }
+  if(father.length < 5 || !father.includes(' ')) { alert('Father name must be min 5 characters and include a space'); return false; }
+  if(!/^\d{3}$/.test(roll)) { alert('Roll must be exactly 3 digits'); return false; }
+  if(!/^[6-9]\d{9}$/.test(mobile)) { alert('Mobile must be 10 digits starting with 6-9'); return false; }
+  return true;
+}
+
+function onStart(){ if(!validateForm()) return; showPwdOverlay(); }
+function onClear(){ if(!confirm('Clear saved data?')) return; ['studentName','fatherName','roll','mobile'].forEach(id=> el(id).value=''); saveLocal(); updatePI(); }
+
+function saveLocal(){
+  const data = {
+    studentName: el('studentName').value.trim(),
+    fatherName: el('fatherName').value.trim(),
+    roll: el('roll').value.trim(),
+    mobile: el('mobile').value.trim(),
+    series: el('series').value,
+    setNo: el('setNo').value,
+    pi: el('piPreview').textContent
+  };
+  localStorage.setItem('ADCA_REG', JSON.stringify(data));
+}
+
+function loadSaved(){
+  try{ const raw = localStorage.getItem('ADCA_REG'); if(!raw) return; const data = JSON.parse(raw);
+    if(data.studentName) el('studentName').value = data.studentName;
+    if(data.fatherName) el('fatherName').value = data.fatherName;
+    if(data.roll) el('roll').value = data.roll;
+    if(data.mobile) el('mobile').value = data.mobile;
+    if(data.series) el('series').value = data.series;
+    if(data.setNo) el('setNo').value = data.setNo;
+  }catch(e){}
+}
+
+function setupPwdOverlay(){
+  el('pwdCancel').addEventListener('click', ()=> hidePwdOverlay());
+  el('pwdOk').addEventListener('click', attemptUnlock);
+  el('pwdInput').addEventListener('keyup', (ev)=>{ if(ev.key==='Enter') attemptUnlock(); });
+}
+
+function showPwdOverlay(){ el('pwdInput').value=''; el('pwdOverlay').style.display='flex'; el('pwdInput').focus(); }
+function hidePwdOverlay(){ el('pwdOverlay').style.display='none'; }
+
+function attemptUnlock(){
+  const p = el('pwdInput').value.trim();
+  if(!p){ alert('Enter password'); return; }
+  if(VALID_PASSWORDS.includes(p)){
+    saveLocal();
+    const data = JSON.parse(localStorage.getItem('ADCA_REG') || '{}');
+    // Redirect to backend endpoint?action=quiz with pi & roll
+    const url = new URL(ENDPOINT);
+    url.searchParams.set('action','quiz');
+    if(data.pi) url.searchParams.set('pi', data.pi);
+    if(data.roll) url.searchParams.set('roll', data.roll);
+    // Flag
+    try{ sessionStorage.setItem('quizUnlocked', '1'); }catch(e){}
+    window.location.href = url.toString();
+  } else {
+    alert('गलत पासवर्ड');
+  }
+  hidePwdOverlay();
+}
+
+// Persist on every input
+document.addEventListener('input', (ev)=>{ if(ev.target && ['studentName','fatherName','roll','mobile','series','setNo'].includes(ev.target.id)) saveLocal(); }, {capture:true});
+
+init();
+</script>
+</body>
+</html>

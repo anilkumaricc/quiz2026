@@ -1,0 +1,144 @@
+<!-- FILE: Quiz2026.html
+     Place this file on GitHub Pages (e.g. https://anilkumaricc.github.io/Quiz2026.html)
+     Responsibilities:
+     - Loads config.js which must define window.ADCA.ENDPOINT (Apps Script /exec URL)
+     - Prompts user for password (client-side convenience)
+     - On success redirects to Apps Script endpoint?action=quiz with optional pi/roll query params read from localStorage
+     
+     IMPORTANT:
+     - Keep config.js in the same repo and ensure it sets ENDPOINT correctly.
+     - Do NOT change UI/UX; only replace this file in your GitHub.
+-->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Quiz — Unlock</title>
+<link rel="icon" href="data:," />
+<style>
+  :root{
+    --bg:#071026; --card:#0f1724; --accent:#2563eb; --muted:#98abc5;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%;margin:0;background:
+    radial-gradient(900px 400px at 70% -10%, rgba(37,99,235,0.12), transparent),
+    linear-gradient(180deg,#02040a,#071026); color:#e8f2ff; display:flex; align-items:center; justify-content:center;}
+  .card{width:460px; max-width:94%; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); border-radius:12px; padding:22px; box-shadow:0 10px 40px rgba(2,6,23,0.6)}
+  h1{margin:0 0 6px 0; font-size:20px}
+  p.lead{margin:0 0 14px 0; color:var(--muted)}
+  label{display:block;font-size:13px;color:var(--muted); margin-bottom:6px}
+  input[type="password"]{width:100%; padding:12px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.01); color:inherit; box-sizing:border-box}
+  .row{display:flex; gap:8px; margin-top:12px}
+  .btn{padding:10px 14px; border-radius:10px; background:linear-gradient(90deg,var(--accent),#1e40af); color:white; border:none; cursor:pointer; font-weight:600}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+  .muted{color:var(--muted);font-size:13px;margin-top:12px}
+  .feedback{height:18px;margin-top:8px;color:#ffb4b4;font-size:13px}
+  .small{font-size:13px;color:var(--muted)}
+  .hint{font-size:12px; color: rgba(255,255,255,0.6); margin-top:8px}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.8);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="card" role="dialog" aria-labelledby="title">
+    <h1 id="title">Quiz — Password Required</h1>
+    <p class="lead">Is quiz ko kholne ke liye password darj karein. Agar aap teacher/administrator hain to valid password use karein.</p>
+
+    <label for="pwd">Password</label>
+    <input id="pwd" type="password" autocomplete="off" placeholder="Password dijiye" aria-label="Password" />
+
+    <div class="row">
+      <button id="unlockBtn" class="btn" aria-label="Unlock">Unlock</button>
+      <button id="clearBtn" class="btn ghost" aria-label="Clear">Clear</button>
+    </div>
+
+    <div class="feedback" id="feedback" aria-live="polite"></div>
+
+    <div class="muted small">Contact admin if you don't have the password.</div>
+    <div class="hint">Note: This is a convenience gate. For strong security store passwords server-side.</div>
+  </div>
+
+<!-- load config (must be present in same repo) -->
+<script src="config.js"></script>
+
+<script>
+/*
+  Final Quiz2026.html script
+  - Single source of truth: window.ADCA.ENDPOINT (config.js)
+  - Validates client-side convenience passwords
+  - On success redirects to ENDPOINT?action=quiz with optional pi/roll from localStorage
+  - Clean messages, minimal UI change
+*/
+
+(function () {
+  // allowed convenience passwords (client-side; server must still validate)
+  const VALID_PASSWORDS = ['hatta2025','quizideal','adca2025','ICC2026'];
+
+  const unlockBtn = document.getElementById('unlockBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const pwdInput = document.getElementById('pwd');
+  const fb = document.getElementById('feedback');
+
+  function showMessage(msg, ok=true){
+    fb.textContent = msg;
+    fb.style.color = ok ? '#b6ffcd' : '#ffb4b4';
+  }
+  function clearMessage(){ fb.textContent = ''; }
+
+  clearBtn.addEventListener('click', ()=> {
+    pwdInput.value = '';
+    pwdInput.focus();
+    clearMessage();
+  });
+
+  pwdInput.addEventListener('keydown', (e)=> {
+    if(e.key === 'Enter') unlockBtn.click();
+  });
+
+  unlockBtn.addEventListener('click', ()=> {
+    const v = (pwdInput.value || '').trim();
+    if(!v){ showMessage('Please enter password', false); pwdInput.focus(); return; }
+
+    // read endpoint from config
+    const ENDPOINT = (window.ADCA && window.ADCA.ENDPOINT) ? window.ADCA.ENDPOINT : null;
+    if(!ENDPOINT){
+      showMessage('Server URL not configured. Configure ENDPOINT in config.js', false);
+      return;
+    }
+
+    // local client-side check (convenience)
+    if(!VALID_PASSWORDS.includes(v.toLowerCase())){
+      showMessage('गलत पासवर्ड — दुबारा कोशिश करें', false);
+      pwdInput.focus();
+      return;
+    }
+
+    // show accepted message + small spinner
+    fb.innerHTML = 'Password accepted — Redirecting... <span class="spinner" aria-hidden="true"></span>';
+    fb.style.color = '#b6ffcd';
+
+    // try to persist session flag
+    try{ sessionStorage.setItem('quizUnlocked', '1'); }catch(e){}
+
+    // pass optional registration (if present) from localStorage
+    let destUrl;
+    try{
+      const reg = JSON.parse(localStorage.getItem('ADCA_REG') || '{}');
+      const url = new URL(ENDPOINT);
+      url.searchParams.set('action','quiz');
+      if(reg.pi) url.searchParams.set('pi', reg.pi);
+      if(reg.roll) url.searchParams.set('roll', reg.roll);
+      destUrl = url.toString();
+    }catch(e){
+      destUrl = ENDPOINT + '?action=quiz';
+    }
+
+    // tiny delay so UI updates
+    setTimeout(()=> { window.location.href = destUrl; }, 300);
+  });
+
+})();
+</script>
+</body>
+</html>

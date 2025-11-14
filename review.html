@@ -1,0 +1,70 @@
+<!-- FILE: review.html
+     Shows attempts (admin or public limited). Uses ADMIN_KEY from config.js for full access.
+-->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ADCA Quiz — Review</title>
+<style>
+  body{font-family:Inter,system-ui,Arial;background:#07090d;color:#e6eef8;margin:0;padding:18px}
+  .panel{background:#0f1724;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  table{width:100%;border-collapse:collapse;margin-top:12px}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+  th{background:rgba(255,255,255,0.02)}
+  .filters{display:flex;gap:8px}
+  .btn{padding:8px 10px;border-radius:8px;background:#2563eb;border:none;color:#fff;cursor:pointer}
+  .muted{color:#9fb0c8}
+</style>
+</head>
+<body>
+  <h2>Attempts Review</h2>
+  <div class="panel">
+    <div class="filters">
+      <input id="filterPI" placeholder="Filter by PI" />
+      <input id="filterRoll" placeholder="Filter by Roll" />
+      <button id="loadBtn" class="btn">Load</button>
+    </div>
+
+    <div style="margin-top:10px" class="muted">Use admin key in query (admin param) to get full attempts.</div>
+
+    <table id="tbl">
+      <thead><tr><th>_id</th><th>TS</th><th>PI</th><th>Roll</th><th>Student</th><th>Series</th><th>Score</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script src="config.js"></script>
+<script>
+const ENDPOINT = window.ADCA && window.ADCA.ENDPOINT ? window.ADCA.ENDPOINT : '';
+const ADMIN_KEY = window.ADCA && window.ADCA.ADMIN_KEY ? window.ADCA.ADMIN_KEY : '';
+function el(id){return document.getElementById(id);}
+el('loadBtn').addEventListener('click', load);
+
+async function load(){
+  const pi = el('filterPI').value.trim();
+  const roll = el('filterRoll').value.trim();
+  try{
+    const url = new URL(ENDPOINT);
+    url.searchParams.set('action','listbyroll');
+    url.searchParams.set('admin', ADMIN_KEY);
+    if(pi) url.searchParams.set('pi', pi);
+    if(roll) url.searchParams.set('roll', roll);
+    const res = await fetch(url);
+    const j = await res.json();
+    if(!j.ok){ alert('Failed: '+(j.error||'')); return; }
+    const tbody = el('tbl').querySelector('tbody'); tbody.innerHTML='';
+    (j.attempts || []).sort((a,b)=> (b.ts||0)-(a.ts||0)).forEach(a=>{
+      const total = (a.questions || []).length;
+      let correct = 0;
+      (a.questions||[]).forEach(q=>{ if(typeof q.selected==='number' && q.selected === q.answerIndex) correct++; });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${a._id}</td><td>${new Date(a.ts).toLocaleString()}</td><td>${(a.meta && a.meta.pi)||''}</td><td>${(a.meta && a.meta.roll)||''}</td><td>${(a.meta && a.meta.studentName)||''}</td><td>${(a.meta && a.meta.series)||''}</td><td>${correct}/${total}</td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(e){ alert('Error: '+e.message); }
+}
+</script>
+</body>
+</html>

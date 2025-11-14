@@ -1,0 +1,100 @@
+<!-- FILE: dashboard.html
+     Teacher dashboard (uses ADMIN_KEY to access privileged endpoints).
+     Simple charting using canvas — no external libraries.
+-->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ADCA Dashboard</title>
+<style>
+  body{font-family:Inter,Arial;background:#07090d;color:#e6eef8;margin:0;padding:18px}
+  .panel{background:#0f1724;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  .row{display:flex;gap:12px;align-items:center}
+  .small{color:#9fb0c8}
+  .btn{padding:8px 10px;border-radius:8px;background:#2563eb;border:none;color:#fff;cursor:pointer}
+  canvas{background:#061021;border-radius:8px}
+</style>
+</head>
+<body>
+  <h2>Teacher Dashboard</h2>
+  <div class="panel">
+    <div style="display:flex;gap:12px;align-items:center">
+      <input id="filterPI" placeholder="PI" />
+      <input id="filterRoll" placeholder="Roll" />
+      <button id="btnLoad" class="btn">Load</button>
+    </div>
+
+    <div id="summary" style="margin-top:12px" class="small">Summary will appear here.</div>
+
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="panel"><canvas id="chart1" width="400" height="220"></canvas></div>
+      <div class="panel"><canvas id="chart2" width="400" height="220"></canvas></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button id="btnExport" class="btn">Export CSV</button>
+    </div>
+  </div>
+
+<script src="config.js"></script>
+<script>
+const ENDPOINT = window.ADCA && window.ADCA.ENDPOINT ? window.ADCA.ENDPOINT : '';
+const ADMIN_KEY = window.ADCA && window.ADCA.ADMIN_KEY ? window.ADCA.ADMIN_KEY : '';
+function el(id){return document.getElementById(id);}
+
+el('btnLoad').addEventListener('click', async ()=>{
+  const pi = el('filterPI').value.trim(); const roll = el('filterRoll').value.trim();
+  try{
+    const url = new URL(ENDPOINT);
+    url.searchParams.set('action','listall');
+    url.searchParams.set('admin', ADMIN_KEY);
+    if(pi) url.searchParams.set('pi', pi);
+    if(roll) url.searchParams.set('roll', roll);
+    const res = await fetch(url); const j = await res.json();
+    if(!j.ok){ alert('Failed: '+(j.error||'')); return; }
+    const attempts = j.attempts || [];
+    el('summary').textContent = `Total attempts: ${attempts.length}`;
+    buildCharts(attempts);
+  }catch(e){ alert('Error: '+e.message); }
+});
+
+el('btnExport').addEventListener('click', ()=> {
+  const url = new URL(ENDPOINT);
+  url.searchParams.set('action','export');
+  url.searchParams.set('admin', ADMIN_KEY);
+  window.location.href = url.toString();
+});
+
+function buildCharts(attempts){
+  const countsBySeries = {};
+  attempts.forEach(a=>{ const s = (a.meta && a.meta.series) || 'Unknown'; countsBySeries[s] = (countsBySeries[s]||0)+1; });
+  const seriesNames = Object.keys(countsBySeries);
+  const canvas1 = document.getElementById('chart1'); const ctx1 = canvas1.getContext('2d'); ctx1.clearRect(0,0,canvas1.width,canvas1.height);
+  const max = Math.max(...Object.values(countsBySeries),1);
+  const w = canvas1.width / Math.max(seriesNames.length,1);
+  seriesNames.forEach((s,i)=>{
+    const h = (countsBySeries[s]/max) * (canvas1.height - 40);
+    ctx1.fillStyle = '#2563eb';
+    ctx1.fillRect(i*w + 20, canvas1.height - h - 20, w - 40, h);
+    ctx1.fillStyle = '#9fb0c8'; ctx1.fillText(s, i*w + 22, canvas1.height - 4);
+    ctx1.fillText(countsBySeries[s], i*w + 22, canvas1.height - h - 26);
+  });
+
+  const canvas2 = document.getElementById('chart2'); const ctx2 = canvas2.getContext('2d'); ctx2.clearRect(0,0,canvas2.width,canvas2.height);
+  const total = attempts.length || 1; let start=0;
+  seriesNames.forEach((s,i)=>{
+    const val = countsBySeries[s]/total;
+    ctx2.beginPath();
+    ctx2.moveTo(canvas2.width/2, canvas2.height/2);
+    ctx2.arc(canvas2.width/2, canvas2.height/2, Math.min(canvas2.width,canvas2.height)/2 - 10, start*Math.PI*2, (start+val)*Math.PI*2);
+    ctx2.closePath();
+    ctx2.fillStyle = ['#2563eb','#1e40af','#06b6d4','#10b981','#f59e0b'][i % 5];
+    ctx2.fill();
+    start += val;
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!-- FILE: quiz.html
+     Quiz page — must be placed on Apps Script project as HTML file named "Quiz" or served by Index->redirect.
+     Keeps original UI/UX exactly. Uses ENDPOINT from config.js.
+-->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ADCA Quiz</title>
+<link rel="icon" href="data:," />
+<style>
+  :root{
+    --bg:#07090d; --panel:#091024; --card:#0b1220; --primary:#2563eb; --primary-2:#1e40af; --muted:#9fb0c8;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  html,body{height:100%; margin:0; background:
+    radial-gradient(900px 400px at 70% -10%, rgba(37,99,235,0.08), transparent),
+    linear-gradient(180deg,#02040a,#07090d); color:#e6eef8;}
+  .wrap{max-width:1100px;margin:18px auto;padding:18px;display:grid;grid-template-columns:1fr 320px;gap:18px}
+  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-2))}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); padding:16px; border-radius:12px}
+  .qcard{padding:16px;border-radius:12px}
+  .navgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:6px;margin-top:12px}
+  .navbtn{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;cursor:pointer}
+  .navbtn.current{background:linear-gradient(90deg,var(--primary),var(--primary-2)); color:white}
+  .options{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .opt{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04); cursor:pointer}
+  .opt.locked{opacity:0.7}
+  .controls{display:flex;gap:8px;margin-top:14px}
+  .timer{font-weight:700;padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,var(--primary),var(--primary-2)); color:white}
+  .small{font-size:13px;color:var(--muted)}
+  .finish{background:#10b981;border:none;color:white;padding:10px 12px;border-radius:10px;cursor:pointer}
+  footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;margin-top:6px}
+  .explain{margin-top:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:8px}
+  @media(max-width:980px){ .wrap{grid-template-columns:1fr} .navgrid{grid-template-columns:repeat(6,1fr)} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="brand"><div class="logo" aria-hidden="true"></div><div><h2 style="margin:0">ADCA Quiz</h2><div class="small">Good luck — Lock answers to confirm</div></div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="timer" id="totalTimer">Total: 00:00</div>
+      <div class="timer" id="qTimer">Q: 00</div>
+    </div>
+  </header>
+
+  <main class="panel qcard" id="mainCard">
+    <div id="meta" class="small muted"></div>
+    <h3 id="qTitle">Loading questions...</h3>
+    <div id="qText" style="margin-top:8px"></div>
+
+    <div class="options" id="options"></div>
+
+    <div class="controls">
+      <button id="prevBtn" class="navbtn">Prev</button>
+      <button id="lockBtn" class="btn" id="lockBtnMain">Lock Answer</button>
+      <button id="skipBtn" class="navbtn">Skip</button>
+      <button id="nextBtn" class="navbtn">Next</button>
+      <div style="flex:1"></div>
+      <label class="small muted" style="align-self:center;margin-right:8px">Per-Q:</label>
+      <select id="perQSelect" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);color:inherit">
+        <option value="30">30s</option>
+        <option value="45">45s</option>
+        <option value="60" selected>60s</option>
+        <option value="90">90s</option>
+        <option value="120">120s</option>
+      </select>
+      <button id="extendBtn" class="btn-ghost" title="Add +60s to current question">+1 Min</button>
+    </div>
+
+    <div class="navgrid" id="navGrid"></div>
+
+    <div id="explainBox" class="explain" aria-live="polite"></div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button id="finishBtn" class="finish" disabled>Finish & Submit</button>
+    </div>
+  </main>
+
+  <aside class="panel right-col">
+    <div style="padding:12px">
+      <div class="small muted">Student PI</div>
+      <div id="piBox" style="font-family:monospace;font-weight:700;margin-top:6px">—</div>
+      <div class="small muted" style="margin-top:8px">Previous attempts</div>
+      <div id="prevAttempts" style="margin-top:8px" class="muted small">—</div>
+    </div>
+
+    <div class="panel" style="padding:12px;max-height:340px;overflow:auto">
+      <h4 style="margin:0 0 8px 0">Live HW / CW</h4>
+      <div id="hwList" class="muted small">Loading HW/CW...</div>
+    </div>
+
+    <div class="panel" style="padding:12px">
+      <h4 style="margin:0 0 8px 0">Score</h4>
+      <div id="scoreBox" style="font-size:20px;font-weight:700">0 / 0</div>
+      <div class="small muted">Correct / Attempted</div>
+    </div>
+  </aside>
+
+  <footer>ADCA Quiz — Powered by Google Apps Script</footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+/* quiz.html logic — implements timers, lock, skip, token, submit, previous attempts, hw/cw.
+   Uses ENDPOINT from config.js and PRIMARY_KEY for submit.
+*/
+const ENDPOINT = window.ADCA && window.ADCA.ENDPOINT ? window.ADCA.ENDPOINT : '';
+const PRIMARY_KEY = window.ADCA && window.ADCA.PRIMARY_KEY ? window.ADCA.PRIMARY_KEY : '';
+const ADMIN_KEY = window.ADCA && window.ADCA.ADMIN_KEY ? window.ADCA.ADMIN_KEY : '';
+
+function el(id){ return document.getElementById(id); }
+let state = { meta:{}, questions:[], current:0, answers:[], perQSec:60, totalStart:null, qStart:null, totalTimerId:null, qTimerId:null, perQRemaining:60, skipped:new Set() };
+const FALLBACK_QUESTIONS = [
+  {id:'q1', q:'HTML stands for?', opts:['Hyper Text Markup Language','High Text Makeup Language','Hyperlinks Text Mark Language','None of these'], answer:0, explanation:'HTML stands for Hyper Text Markup Language.'},
+  {id:'q2', q:'CSS is used for?', opts:['Structure','Style','Behavior','Database'], answer:1, explanation:'CSS controls presentation.'},
+  {id:'q3', q:'JS is mainly for?', opts:['Styling','Markup','Interactivity','Server only'], answer:2, explanation:'JavaScript enables interactivity.'}
+];
+
+function loadReg(){ try{ const raw=localStorage.getItem('ADCA_REG'); return raw?JSON.parse(raw):{};}catch(e){return{}} }
+function renderMeta(){ const reg = loadReg(); el('piBox').textContent = reg.pi || '—'; el('meta').textContent = `${reg.studentName || '—'} • Roll: ${reg.roll || '—'} • Series: ${reg.series || '—'} Set: ${reg.setNo || '—'}`; }
+
+async function fetchQuestions(){
+  try{
+    const url = new URL(ENDPOINT);
+    url.searchParams.set('action','questions');
+    const res = await fetch(url);
+    if(res.ok){ const j = await res.json(); if(Array.isArray(j.questions) && j.questions.length>0) return j.questions.map(q=>({ id:q.id||Math.random().toString(36).slice(2), q:q.q||'', opts:q.opts||[], answer: (typeof q.answer==='number'?q.answer:0), explanation:q.explanation||'' })); }
+  }catch(e){}
+  return FALLBACK_QUESTIONS;
+}
+
+function startTimers(){
+  state.totalStart = Date.now(); state.qStart = Date.now(); state.perQRemaining = state.perQSec;
+  el('totalTimer').textContent = 'Total: 00:00'; el('qTimer').textContent = `Q: ${state.perQRemaining}s`;
+  state.totalTimerId = setInterval(()=>{ const s = Math.floor((Date.now()-state.totalStart)/1000); el('totalTimer').textContent = 'Total: '+formatTime(s); },1000);
+  state.qTimerId = setInterval(()=>{ state.perQRemaining = Math.max(0, state.perQRemaining-1); el('qTimer').textContent = `Q: ${state.perQRemaining}s`; if(state.perQRemaining<=0){ if(!state.answers[state.current] || !state.answers[state.current].locked){ state.skipped.add(state.current); nextQuestion(); } else nextQuestion(); } },1000);
+}
+
+function stopTimers(){ if(state.totalTimerId) clearInterval(state.totalTimerId); if(state.qTimerId) clearInterval(state.qTimerId); }
+function formatTime(s){ const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
+
+function renderQuestion(idx){
+  const q = state.questions[idx];
+  el('qTitle').textContent = `Question ${idx+1} of ${state.questions.length}`;
+  el('qText').textContent = q.q;
+  const opts = el('options'); opts.innerHTML='';
+  q.opts.forEach((o,i)=>{ const d=document.createElement('div'); d.className='opt'; d.tabIndex=0; d.dataset.index=i; d.textContent=o;
+    if(state.answers[idx] && state.answers[idx].choiceIndex === i){ d.style.outline='2px solid rgba(34,197,94,0.3)'; d.style.background='linear-gradient(90deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03))'; }
+    if(state.answers[idx] && state.answers[idx].locked){ d.classList.add('locked'); } else { d.addEventListener('click', ()=> selectOption(idx,i)); d.addEventListener('keyup',(e)=>{ if(e.key==='Enter') selectOption(idx,i); }); }
+    opts.appendChild(d);
+  });
+
+  Array.from(el('navGrid').children).forEach((b,i)=>{ b.classList.toggle('current', i===idx); b.classList.toggle('locked', state.answers[i] && state.answers[i].locked); b.classList.toggle('skipped', state.skipped.has(i)); });
+
+  const ex = el('explainBox');
+  if(state.answers[idx] && state.answers[idx].locked){
+    const correct = q.answer; const chosen = state.answers[idx].choiceIndex;
+    ex.innerHTML = `<div><strong>Explanation:</strong></div><div style="margin-top:6px">${escapeHtml(q.explanation || '—')}</div>
+      <div style="margin-top:8px" class="small muted">Correct: ${q.opts[correct]}</div>`;
+  } else { ex.textContent=''; }
+}
+
+function selectOption(qidx, choiceIdx){ state.answers[qidx] = state.answers[qidx] || {choiceIndex:null, locked:false, timeTaken:0}; state.answers[qidx].choiceIndex = choiceIdx; renderQuestion(qidx); updateFinishState(); updateScore(); }
+function lockCurrent(){ const a = state.answers[state.current]; if(!a || typeof a.choiceIndex !== 'number'){ alert('Select an option first'); return; } if(!confirm('Lock this answer?')) return; a.locked = true; a.timeTaken = Math.floor((Date.now()-state.qStart)/1000); renderQuestion(state.current); updateFinishState(); updateScore(); }
+function nextQuestion(){ state.current = Math.min(state.questions.length-1, state.current+1); resetQTimer(); renderQuestion(state.current); }
+function prevQuestion(){ state.current = Math.max(0, state.current-1); resetQTimer(); renderQuestion(state.current); }
+function gotoQuestion(i){ state.current = i; resetQTimer(); renderQuestion(i); }
+function resetQTimer(){ state.qStart = Date.now(); state.perQRemaining = state.perQSec; el('qTimer').textContent = `Q: ${state.perQRemaining}s`; }
+
+function buildNav(){ const ng = el('navGrid'); ng.innerHTML=''; for(let i=0;i<state.questions.length;i++){ const b=document.createElement('button'); b.className='navbtn'; b.textContent = i+1; b.addEventListener('click', ()=> gotoQuestion(i)); ng.appendChild(b); } }
+
+function updateFinishState(){ const lockedCount = state.answers.filter(a=> a && a.locked).length; const attempted = state.answers.filter(a=> a && typeof a.choiceIndex==='number').length; el('finishBtn').disabled = !((lockedCount>0) || (attempted === state.questions.length)); }
+function updateScore(){ let correct=0, attempted=0; state.questions.forEach((q,i)=>{ const a = state.answers[i]; if(a && typeof a.choiceIndex === 'number'){ attempted++; if(a.choiceIndex === q.answer) correct++; } }); el('scoreBox').textContent = `${correct} / ${attempted}`; }
+
+function escapeHtml(unsafe){ if(!unsafe) return ''; return String(unsafe).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]); }); }
+
+async function fetchPreviousAttempts(pi, roll){
+  try{ const url = new URL(ENDPOINT); url.searchParams.set('action','listbyroll'); url.searchParams.set('pi',pi||''); url.searchParams.set('roll',roll||''); const res=await fetch(url); if(!res.ok) return []; const j=await res.json(); if(Array.isArray(j.attempts)) return j.attempts; }catch(e){} return [];
+}
+
+async function fetchHWCW(series,setNo){
+  try{ const url = new URL(ENDPOINT); url.searchParams.set('action','hwcw'); url.searchParams.set('series',series||''); url.searchParams.set('setNo',setNo||''); const res = await fetch(url); if(res.ok){ const j = await res.json(); return j.items || []; } }catch(e){} return [];
+}
+
+async function getToken(pi, roll){
+  try{ const url = new URL(ENDPOINT); url.searchParams.set('action','gettoken'); url.searchParams.set('pi',pi||''); url.searchParams.set('roll',roll||''); const res = await fetch(url); if(!res.ok) throw new Error('token fetch failed'); const j = await res.json(); if(j && j.token) return j.token; }catch(e){} return null;
+}
+
+async function submitAnswers(){
+  const reg = loadReg();
+  const token = await getToken(reg.pi, reg.roll);
+  if(!token){ alert('Unable to get submit token. Try again.'); return; }
+  const payload = {
+    action: 'submit',
+    token,
+    primary: PRIMARY_KEY,
+    submission: {
+      meta: reg,
+      questions: state.questions.map((q,i)=> ({ id:q.id, q:q.q, opts:q.opts, answerIndex:q.answer, selected:(state.answers[i]?state.answers[i].choiceIndex:null), locked:(state.answers[i]?!!state.answers[i].locked:false), timeTaken:(state.answers[i]?state.answers[i].timeTaken:null) })),
+      ts: Date.now()
+    }
+  };
+  try{
+    const res = await fetch(ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const j = await res.json();
+    if(j && j.ok){ stopTimers(); showReview(j); } else { alert('Submit failed: '+(j && j.error ? j.error : 'Unknown')); }
+  }catch(e){ alert('Submit failed: '+e.message); }
+}
+
+function showReview(responseData){
+  const main = el('mainCard');
+  main.innerHTML = `<h3>Result</h3><div class="small muted" style="margin-bottom:10px">Submission saved.</div><div id="reviewArea"></div><div style="margin-top:12px;display:flex;justify-content:flex-end"><button id="toReviewBtn" class="btn">Open Review Page</button></div>`;
+  const ra = el('reviewArea');
+  state.questions.forEach((q,i)=>{ const a = state.answers[i] || {}; const div=document.createElement('div'); div.className='panel'; div.style.marginBottom='8px'; div.innerHTML = `<div style="font-weight:700">${i+1}. ${escapeHtml(q.q)}</div><div style="margin-top:8px">Your answer: <strong>${(typeof a.choiceIndex==='number')?escapeHtml(q.opts[a.choiceIndex]):'—'}</strong></div><div style="margin-top:6px" class="small muted">Correct: ${escapeHtml(q.opts[q.answer])}</div><div style="margin-top:8px">${escapeHtml(q.explanation||'')}</div>`; ra.appendChild(div); });
+  document.getElementById('toReviewBtn').addEventListener('click', ()=> { window.location.href = 'review.html'; });
+}
+
+function bindUI(){
+  document.getElementById('prevBtn').addEventListener('click', prevQuestion);
+  document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+  document.getElementById('lockBtnMain').addEventListener('click', lockCurrent);
+  document.getElementById('skipBtn').addEventListener('click', ()=>{ state.skipped.add(state.current); nextQuestion(); });
+  document.getElementById('finishBtn').addEventListener('click', ()=>{ if(confirm('Submit answers?')) submitAnswers(); });
+  document.getElementById('perQSelect').addEventListener('change', (e)=>{ state.perQSec = Number(e.target.value); resetQTimer(); });
+  document.getElementById('extendBtn').addEventListener('click', ()=>{ state.perQRemaining += 60; });
+}
+
+async function init(){
+  renderMeta();
+  bindUI();
+  const reg = loadReg();
+  if(!reg || !reg.pi){ alert('Registration data missing. Please start from registration page.'); window.location.href = 'https://anilkumaricc.github.io/Quiz2026.html'; return; }
+  // load questions
+  state.questions = await fetchQuestions();
+  if(!state.questions || state.questions.length===0) state.questions = FALLBACK_QUESTIONS;
+  state.answers = new Array(state.questions.length).fill(null);
+  buildNav();
+  renderQuestion(0);
+  startTimers();
+  // fetch prev attempts & hw
+  const prev = await fetchPreviousAttempts(reg.pi, reg.roll);
+  el('prevAttempts').textContent = prev.length ? `${prev.length} attempt(s)` : '—';
+  const hw = await fetchHWCW(reg.series, reg.setNo);
+  el('hwList').textContent = hw.length ? hw.map(x=>`${x.title || x.summary}`).join(' | ') : '—';
+  updateScore();
+}
+
+init();
+</script>
+</body>
+</html>
